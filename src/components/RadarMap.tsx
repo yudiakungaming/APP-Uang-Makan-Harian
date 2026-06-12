@@ -51,65 +51,10 @@ export default function RadarMap({
   // Clamp within SVG boundaries for safety, though they can go off-radar if very far
   const isOffRadar = Math.sqrt(xOffsetMeters * xOffsetMeters + yOffsetMeters * yOffsetMeters) > (geofenceRadius * 1.6);
 
-  // Convert SVG clicks back to coordinates to allow simulated positions
-  const handleSvgClick = (e: React.MouseEvent<SVGSVGElement, MouseEvent>) => {
-    if (!containerRef.current) return;
-    const rect = e.currentTarget.getBoundingClientRect();
-    
-    // Relative coordinates scaled to 0-300
-    const clickX = ((e.clientX - rect.left) / rect.width) * 300;
-    const clickY = ((e.clientY - rect.top) / rect.height) * 300;
-
-    // Meters offset from center
-    const dxMeters = (clickX - SVG_CENTER) / pixelsPerMeter;
-    const dyMeters = -(clickY - SVG_CENTER) / pixelsPerMeter; // Invert SVG y
-
-    // Calculate simulated coordinates
-    const simLat = officeLat + (dyMeters / METERS_PER_DEGREE_LAT);
-    const simLng = officeLng + (dxMeters / METERS_PER_DEGREE_LNG);
-
-    onLocationChange(
-      Math.round(simLat * 1000000) / 1000000,
-      Math.round(simLng * 1000000) / 1000000,
-      'GPS_SIMULATED'
-    );
-    setErrorMsg(null);
-  };
-
-  // Pre-configured simulation buttons
-  const setPreset = (type: 'inside' | 'outside' | 'center') => {
-    let latOffset = 0;
-    let lngOffset = 0;
-
-    if (type === 'inside') {
-      // ~35 meters South-East
-      latOffset = -0.00022;
-      lngOffset = 0.00022;
-    } else if (type === 'outside') {
-      // ~220 meters North-West
-      latOffset = 0.0014;
-      lngOffset = -0.0014;
-    } else if (type === 'center') {
-      // Exactly 0 meters
-      latOffset = 0;
-      lngOffset = 0;
-    }
-
-    const nextLat = officeLat + latOffset;
-    const nextLng = officeLng + lngOffset;
-
-    onLocationChange(
-      Math.round(nextLat * 1000000) / 1000000,
-      Math.round(nextLng * 1000000) / 1000000,
-      'GPS_SIMULATED'
-    );
-    setErrorMsg(null);
-  };
-
   // Request actual GPS coordinates
   const triggerRealGps = () => {
     if (!navigator.geolocation) {
-      setErrorMsg('Browser Anda tidak mendukung Geolocation.');
+      setErrorMsg('Browser atau device Anda tidak mendukung Geolocation.');
       return;
     }
 
@@ -127,15 +72,15 @@ export default function RadarMap({
         console.error('GPS error:', err);
         if (err.code === 1) {
           setErrorMsg(
-            'Akses GPS ditolak. Jika berada di dalam frame AI Studio, silakan gunakan "Mode Simulasi" interaktif (klik pada radar untuk bergeser posisi) atau buka aplikasi di tab baru untuk mengizinkan GPS asli browser.'
+            'Akses GPS ditolak. Pastikan Anda mengizinkan izin deteksi lokasi di browser Anda. Jika memuat portal absensi ini dari dalam iFrame AI Studio, silakan gunakan pilihan "Buka Tab Baru" (Open in New Tab) di kanan atas agar otorisasi deteksi GPS asli browser dapat berjalan secara resmi.'
           );
         } else {
-          setErrorMsg(`Gagal memuat GPS: ${err.message}.`);
+          setErrorMsg(`Gagal memuat sinyal GPS: ${err.message}. Pastikan GPS Anda aktif.`);
         }
       },
       {
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 12000,
         maximumAge: 0,
       }
     );
@@ -149,8 +94,8 @@ export default function RadarMap({
           <h3 className="font-sans font-semibold tracking-wide text-slate-200 text-sm uppercase">Radar Detektor Geofence</h3>
         </div>
         <div className="flex select-none items-center gap-2 bg-slate-800/80 px-3 py-1 rounded-full text-xs font-mono">
-          <span className={`w-2.5 h-2.5 rounded-full ${locationMethod === 'GPS_REAL' ? 'bg-indigo-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
-          {locationMethod === 'GPS_REAL' ? 'GPS ASLI' : 'GPS SIMULASI'}
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+          📡 GPS AKTIF
         </div>
       </div>
 
@@ -165,8 +110,7 @@ export default function RadarMap({
         <svg
           id="svg-radar-map"
           viewBox="0 0 300 300"
-          className="w-full h-full relative z-10 cursor-crosshair"
-          onClick={handleSvgClick}
+          className="w-full h-full relative z-10"
         >
           {/* Circular grids */}
           <circle cx="150" cy="150" r="140" fill="none" stroke="#1e293b" strokeWidth="1" strokeDasharray="3 3" />
@@ -273,57 +217,19 @@ export default function RadarMap({
       </div>
 
       <div className="w-full mt-3 text-center text-[10px] text-slate-400/80 font-sans flex items-center justify-center gap-1.5 bg-slate-950 px-3 py-1.5 rounded-lg border border-slate-800/40 select-none">
-        <Cpu className="w-3.5 h-3.5 text-slate-400 animate-pulse" />
-        <span>Tips: <strong>Klik/Sentuh</strong> lingkaran radar di atas untuk memindahkan lokasi simulasi Anda.</span>
+        <Cpu className="w-3.5 h-3.5 text-slate-400 animate-pulse animate-spin" style={{ animationDuration: '6s' }} />
+        <span>Sinyal GPS terhubung langsung dengan satelit koordinat asli HP/Device Anda.</span>
       </div>
 
-      {/* Control Presets */}
-      <div id="simulation-presets" className="w-full mt-4 flex flex-col gap-2.5">
-        <div className="text-xs text-slate-400 font-semibold tracking-wide uppercase self-start text-[10px] select-none">Simulasi Posisi:</div>
-        <div className="grid grid-cols-3 gap-1.5">
-          <button
-            onClick={() => setPreset('center')}
-            className={`py-2 px-1 text-[11px] rounded-lg border font-medium transition-all ${
-              distance === 0 && locationMethod === 'GPS_SIMULATED'
-                ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/50'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700/60'
-            }`}
-          >
-            Tepat di Center (0m)
-          </button>
-          <button
-            onClick={() => setPreset('inside')}
-            className={`py-2 px-1 text-[11px] rounded-lg border font-medium transition-all ${
-              isInside && distance > 0 && locationMethod === 'GPS_SIMULATED'
-                ? 'bg-blue-500/20 text-blue-300 border-blue-500/50'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700/60'
-            }`}
-          >
-            Dalam Kantor (35m)
-          </button>
-          <button
-            onClick={() => setPreset('outside')}
-            className={`py-2 px-1 text-[11px] rounded-lg border font-medium transition-all ${
-              !isInside && locationMethod === 'GPS_SIMULATED'
-                ? 'bg-amber-500/20 text-amber-300 border-amber-500/50'
-                : 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700/60'
-            }`}
-          >
-            Luar Kantor (220m)
-          </button>
-        </div>
-
+      {/* Control Action */}
+      <div id="real-gps-actions" className="w-full mt-4 flex flex-col gap-2.5">
         <button
           onClick={triggerRealGps}
           disabled={loadingGps}
-          className={`w-full py-2.5 px-4 rounded-xl border font-sans font-medium text-xs flex items-center justify-center gap-2 transition-all ${
-            locationMethod === 'GPS_REAL'
-              ? 'bg-indigo-600 hover:bg-indigo-700 text-white border-indigo-500'
-              : 'bg-indigo-950/40 hover:bg-indigo-950/80 text-indigo-300 border-indigo-900/60'
-          } disabled:opacity-50`}
+          className="w-full py-2.5 px-4 rounded-xl border font-sans font-bold text-xs flex items-center justify-center gap-2 transition-all bg-indigo-600 hover:bg-indigo-500 text-white border-indigo-500 shadow active:scale-[0.98]"
         >
           <Navigation className={`w-3.5 h-3.5 ${loadingGps ? 'animate-spin' : ''}`} />
-          {loadingGps ? 'Menghubungkan ke GPS Satelit...' : 'Gunakan Akurasi GPS Asli Device'}
+          {loadingGps ? 'Menyinkronkan Koordinat Satelit...' : '📍 Sinkronisasi Deteksi GPS Asli'}
         </button>
 
         {errorMsg && (

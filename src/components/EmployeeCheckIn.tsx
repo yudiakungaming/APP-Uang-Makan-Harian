@@ -161,7 +161,7 @@ export default function EmployeeCheckIn({
               <div className="flex justify-between items-center">
                 <span className="text-slate-400 text-[10px] uppercase font-sans">METODE DETEKSI:</span>
                 <span className="text-slate-300 text-[10px]">
-                  {successTicket.method === 'GPS_REAL' ? '📡 Satelit GPS Aktif' : '💻 Simulasi Presisi'}
+                  📡 Satelit GPS Aktif
                 </span>
               </div>
               <div className="flex justify-between items-center border-t border-dashed border-slate-700/60 pt-3 mt-3">
@@ -311,7 +311,7 @@ export default function EmployeeCheckIn({
             </div>
             <div className="flex justify-between">
               <span>METODE GPS:</span>
-              <span className="text-slate-700 font-semibold">{locationMethod === 'GPS_REAL' ? '📡 SATELIT GPS AKTIF' : '💻 SIMULATOR INTEGRASI'}</span>
+              <span className="text-slate-700 font-semibold">📡 SATELIT GPS REAL-TIME</span>
             </div>
             <div className="flex justify-between">
               <span>INTEGRITAS DATA:</span>

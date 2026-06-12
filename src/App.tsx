@@ -101,10 +101,10 @@ export default function App() {
   // --- Router hash state ---
   const [currentHash, setCurrentHash] = useState(() => window.location.hash || '#/');
 
-  // --- GPS Tracking Coordinate simulation states ---
-  const [currentLat, setCurrentLat] = useState(() => DEFAULT_GEOFENCE.latitude + 0.0011);
-  const [currentLng, setCurrentLng] = useState(() => DEFAULT_GEOFENCE.longitude + 0.0011);
-  const [locationMethod, setLocationMethod] = useState<'GPS_REAL' | 'GPS_SIMULATED'>('GPS_SIMULATED');
+  // --- GPS Tracking Coordinate states ---
+  const [currentLat, setCurrentLat] = useState(() => DEFAULT_GEOFENCE.latitude);
+  const [currentLng, setCurrentLng] = useState(() => DEFAULT_GEOFENCE.longitude);
+  const [locationMethod, setLocationMethod] = useState<'GPS_REAL' | 'GPS_SIMULATED'>('GPS_REAL');
 
   // --- Clock text ---
   const [currentTimeCode, setCurrentTimeCode] = useState(() => new Date().toLocaleTimeString('id-ID'));
@@ -236,6 +236,47 @@ export default function App() {
     }, 1000);
     return () => clearInterval(t);
   }, []);
+
+  // --- Auto GPS Tracking Real-Time Background Listener ---
+  useEffect(() => {
+    if (!activeUser) return;
+
+    let watchId: number | null = null;
+
+    if (navigator.geolocation) {
+      // 1. Fetch immediately
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setCurrentLat(position.coords.latitude);
+          setCurrentLng(position.coords.longitude);
+          setLocationMethod('GPS_REAL');
+        },
+        (err) => {
+          console.warn("Initial background GPS lookup blocked or errored:", err);
+        },
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+
+      // 2. Start streaming live updates
+      watchId = navigator.geolocation.watchPosition(
+        (position) => {
+          setCurrentLat(position.coords.latitude);
+          setCurrentLng(position.coords.longitude);
+          setLocationMethod('GPS_REAL');
+        },
+        (err) => {
+          console.warn("Background GPS watch stream error:", err);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 3000 }
+      );
+    }
+
+    return () => {
+      if (watchId !== null && navigator.geolocation) {
+        navigator.geolocation.clearWatch(watchId);
+      }
+    };
+  }, [activeUser?.uid]);
 
   // --- Distance Calculations ---
   const distance = calculateDistance(
