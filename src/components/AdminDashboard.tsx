@@ -17,13 +17,7 @@ import {
 } from 'lucide-react';
 import { Employee, AttendanceRecord, GeofenceSettings } from '../types';
 import { formatRupiah, formatIndonesianDate } from '../utils';
-import { APIProvider, Map, AdvancedMarker, Pin } from '@vis.gl/react-google-maps';
-
-const GOOGLE_MAPS_KEY =
-  (typeof process !== 'undefined' && process.env?.GOOGLE_MAPS_PLATFORM_KEY) ||
-  (import.meta as any).env?.VITE_GOOGLE_MAPS_PLATFORM_KEY ||
-  '';
-const hasValidMapsKey = Boolean(GOOGLE_MAPS_KEY) && GOOGLE_MAPS_KEY !== 'YOUR_API_KEY';
+import LeafletMap from './LeafletMap';
 
 
 interface AdminDashboardProps {
@@ -67,30 +61,9 @@ export default function AdminDashboard({
   // Success notifications
   const [notif, setNotif] = useState<string | null>(null);
 
-  // Google Maps parsed coordinates and selection handlers
-  const parsedLat = parseFloat(geoLat);
-  const parsedLng = parseFloat(geoLng);
-  const isValidCoordinate = !isNaN(parsedLat) && !isNaN(parsedLng) && parsedLat >= -90 && parsedLat <= 90 && parsedLng >= -180 && parsedLng <= 180;
-  const mapCenter = isValidCoordinate ? { lat: parsedLat, lng: parsedLng } : { lat: -6.175392, lng: 106.827153 };
-
-  const handleMapClick = (ev: any) => {
-    if (ev.detail?.latLng || ev.latLng) {
-      const latLng = ev.detail?.latLng || ev.latLng;
-      const latVal = typeof latLng.lat === 'function' ? latLng.lat() : latLng.lat;
-      const lngVal = typeof latLng.lng === 'function' ? latLng.lng() : latLng.lng;
-      setGeoLat(Number(latVal).toFixed(6));
-      setGeoLng(Number(lngVal).toFixed(6));
-    }
-  };
-
-  const handleMarkerDragEnd = (ev: any) => {
-    if (ev.latLng) {
-      const latVal = typeof ev.latLng.lat === 'function' ? ev.latLng.lat() : ev.latLng.lat;
-      const lngVal = typeof ev.latLng.lng === 'function' ? ev.latLng.lng() : ev.latLng.lng;
-      setGeoLat(Number(latVal).toFixed(6));
-      setGeoLng(Number(lngVal).toFixed(6));
-    }
-  };
+  // Parsed coordinates for map rendering
+  const parsedLat = parseFloat(geoLat) || -6.175392;
+  const parsedLng = parseFloat(geoLng) || 106.827153;
 
   const triggerNotification = (msg: string) => {
     setNotif(msg);
@@ -476,69 +449,25 @@ export default function AdminDashboard({
               />
             </div>
 
-            {/* Google Maps Selection Section */}
+            {/* Google Maps Selection Section replaced with Free Leaflet Map */}
             <div className="space-y-1.5 md:col-span-2">
               <label className="block text-[11px] font-sans font-bold uppercase text-slate-500 flex items-center gap-1.5">
-                <span>🗺️ Titik Lokasi Kantor (Pilih Lewat Google Maps)</span>
+                <span>🗺️ Titik Lokasi Kantor (Pilih Lewat Peta Interaktif)</span>
               </label>
-              {!hasValidMapsKey ? (
-                <div className="bg-slate-50 hover:bg-slate-100/50 transition-all rounded-xl border border-slate-200 p-4 space-y-3">
-                  <div className="flex gap-2.5">
-                    <span className="text-lg shrink-0">📍</span>
-                    <div>
-                      <h5 className="font-sans font-bold text-slate-700 text-xs">Peta Lokasi Belum Aktif</h5>
-                      <p className="text-[10px] text-slate-500 font-sans mt-0.5 leading-relaxed">
-                        Anda dapat menentukan koordinat Latitude & Longitude pusat kantor secara langsung dengan menggeser pin di atas Google Maps asli.
-                      </p>
-                    </div>
-                  </div>
-                  <div className="bg-white border border-slate-200/60 rounded-xl p-3.5 text-[10px] text-slate-600 font-sans space-y-2">
-                    <p className="font-semibold text-slate-700">Langkah mengaktifkan peta interaktif:</p>
-                    <ol className="list-decimal pl-4 space-y-1 font-sans leading-relaxed text-slate-500">
-                      <li>Dapatkan Google Maps API Key Anda dari <a href="https://console.cloud.google.com/google/maps-apis/start?utm_campaign=gmp-code-assist-ais" target="_blank" rel="noopener noreferrer" className="text-indigo-600 font-bold hover:underline">Google Cloud Console</a>.</li>
-                      <li>Buka <strong>Settings</strong> (ikon roda gigi ⚙️ di pojok kanan atas layar AI Studio).</li>
-                      <li>Pilih menu <strong>Secrets</strong> di daftar pengaturan samping.</li>
-                      <li>Tambahkan secret baru dengan mengetikkan <code>GOOGLE_MAPS_PLATFORM_KEY</code> lalu tekan <strong>Enter</strong>.</li>
-                      <li>Masukkan nilai API Key Anda di kolom isian, kemudian tekan <strong>Enter</strong>.</li>
-                    </ol>
-                    <p className="text-[9.5px] text-indigo-600 font-mono italic">
-                      Setelah kunci ditambahkan secara otomatis, aplikasi akan melakukan kompilasi ulang dan peta interaktif ini akan langsung aktif!
-                    </p>
-                  </div>
+              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner relative select-none">
+                <div className="h-[290px] w-full bg-slate-100 relative">
+                  <LeafletMap 
+                    latitude={parsedLat}
+                    longitude={parsedLng}
+                    onLocationChange={(lat, lng) => {
+                      setGeoLat(lat.toString());
+                      setGeoLng(lng.toString());
+                    }}
+                    officeName={geoName}
+                    radius={parseInt(geoRadius) || 100}
+                  />
                 </div>
-              ) : (
-                <div className="border border-slate-200 rounded-xl overflow-hidden shadow-inner relative select-none">
-                  <APIProvider apiKey={GOOGLE_MAPS_KEY} version="weekly">
-                    <div className="h-[260px] w-full bg-slate-100 relative">
-                      <Map
-                        defaultCenter={mapCenter}
-                        center={mapCenter}
-                        defaultZoom={15}
-                        mapId="DEMO_MAP_ID"
-                        onClick={handleMapClick}
-                        internalUsageAttributionIds={['gmp_mcp_codeassist_v1_aistudio']}
-                        style={{ width: '100%', height: '100%' }}
-                        gestureHandling="cooperative"
-                      >
-                        <AdvancedMarker
-                          position={mapCenter}
-                          draggable={true}
-                          onDragEnd={handleMarkerDragEnd}
-                          title={geoName || 'Kantor Pusat'}
-                        >
-                          <Pin background="#4f46e5" glyphColor="#ffffff" borderColor="#4338ca" />
-                        </AdvancedMarker>
-                      </Map>
-                      
-                      {/* Floating Indicator */}
-                      <div className="absolute bottom-2.5 left-2.5 right-2.5 bg-slate-900/90 text-white rounded-lg px-2.5 py-1.5 text-[9.5px] font-sans font-medium flex items-center gap-1.5 z-10 shadow-md backdrop-blur-sm pointer-events-none">
-                        <span className="w-1.5 h-1.5 rounded-full bg-indigo-450 animate-ping animate-pulse" />
-                        <span>💡 Geser PIN biru atau KLIK area peta mana saja untuk menyesuaikan secara otomatis</span>
-                      </div>
-                    </div>
-                  </APIProvider>
-                </div>
-              )}
+              </div>
             </div>
 
             <div className="space-y-1.5 md:col-span-2">
