@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "Employee": {
+      "title": "Employee",
+      "description": "Karyawan data mapping registered to access daily check-in portals",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier matching Firestore Document ID"
+        },
+        "name": {
+          "type": "string",
+          "description": "Full name of the employee"
+        },
+        "department": {
+          "type": "string",
+          "description": "Sub-division or unit"
+        },
+        "employeeCode": {
+          "type": "string",
+          "description": "Unique staff identification code (NIK/K-ID)"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "Official Google account email aligned for secure logins"
+        }
+      },
+      "required": ["id", "name", "department", "employeeCode", "email"]
+    },
+    "AttendanceRecord": {
+      "title": "Attendance Record",
+      "description": "Durable record of a successful employee check-in inside the geofence area",
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "employeeId": {
+          "type": "string"
+        },
+        "employeeName": {
+          "type": "string"
+        },
+        "employeeEmail": {
+          "type": "string"
+        },
+        "date": {
+          "type": "string",
+          "description": "ISO date YYYY-MM-DD"
+        },
+        "time": {
+          "type": "string",
+          "description": "ISO time HH:MM:SS"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "distance": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["APPROVED", "REJECTED_OUTSIDE"]
+        },
+        "amountSpent": {
+          "type": "number",
+          "description": "Meal allowance calculated (fixed at IDR 25000)"
+        },
+        "method": {
+          "type": "string",
+          "enum": ["GPS_REAL", "GPS_SIMULATED"]
+        }
+      },
+      "required": ["id", "employeeId", "employeeName", "employeeEmail", "date", "time", "latitude", "longitude", "distance", "status", "amountSpent", "method"]
+    },
+    "GeofenceSettings": {
+      "title": "Geofence Settings",
+      "description": "Office center geographical configuration with standard allowance parameters",
+      "type": "object",
+      "properties": {
+        "officeName": {
+          "type": "string"
+        },
+        "latitude": {
+          "type": "number"
+        },
+        "longitude": {
+          "type": "number"
+        },
+        "radius": {
+          "type": "number",
+          "description": "Tolerable limit in meters"
+        },
+        "mealAllowance": {
+          "type": "number",
+          "description": "Daily allowance (Rp 25.000)"
+        }
+      },
+      "required": ["officeName", "latitude", "longitude", "radius", "mealAllowance"]
+    }
+  },
+  "firestore": {
+    "/employees/{employeeId}": {
+      "schema": "Employee",
+      "description": "Collection of authorized employees tied to email credentials"
+    },
+    "/attendanceRecords/{recordId}": {
+      "schema": "AttendanceRecord",
+      "description": "Geofence-verified attendance records and meal allowance disbursements"
+    },
+    "/settings/geofence": {
+      "schema": "GeofenceSettings",
+      "description": "Single-document configuration for current office geofence locations and budgets"
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "short_name": "AntiForge Absen",
+  "name": "Anti-Forge Absensi & Uang Makan",
+  "description": "Sistem Absensi Mandiri & Kalkulasi Uang Makan Mingguan Terverifikasi Geofence GPS",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3652/3652191.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/3652/3652191.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "background_color": "#0f172a",
+  "theme_color": "#10b981",
+  "display": "standalone",
+  "orientation": "portrait"
+}

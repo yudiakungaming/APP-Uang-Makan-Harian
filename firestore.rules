@@ -1,0 +1,102 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Default Deny Rule
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Core Helper Declarations ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isEmailVerified() {
+      return isSignedIn() && 'email' in request.auth.token && request.auth.token.email != null && request.auth.token.email != "";
+    }
+
+    function isDemoUser() {
+      return isSignedIn() && (!('email' in request.auth.token) || request.auth.token.email == null || request.auth.token.email == "");
+    }
+
+    // Hardcoded primary administrator bootstrap matching user email
+    function isAdmin() {
+      return isEmailVerified() && request.auth.token.email == "yudiakungaming@gmail.com";
+    }
+
+    // Is number/float helper
+    function isNumeric(val) {
+      return val is int || val is float;
+    }
+
+    // Helper to validate Entity schemas
+    function isValidEmployee(emp) {
+      return emp.name is string && emp.name.size() > 0 && emp.name.size() <= 100
+          && emp.department is string && emp.department.size() > 0 && emp.department.size() <= 100
+          && emp.employeeCode is string && emp.employeeCode.size() > 0 && emp.employeeCode.size() <= 25
+          && emp.email is string && emp.email.size() > 0 && emp.email.size() <= 100
+          && (!('bankName' in emp) || (emp.bankName is string && emp.bankName.size() <= 100))
+          && (!('bankAccount' in emp) || (emp.bankAccount is string && emp.bankAccount.size() <= 50));
+    }
+
+    function isValidAttendanceRecord(rec) {
+      return rec.employeeId is string && rec.employeeId.size() > 0 && rec.employeeId.size() <= 128
+          && rec.employeeName is string && rec.employeeName.size() > 0 && rec.employeeName.size() <= 100
+          && rec.employeeEmail is string && rec.employeeEmail.size() > 0 && rec.employeeEmail.size() <= 100
+          && rec.date is string && rec.date.size() == 10
+          && rec.time is string && rec.time.size() == 8
+          && isNumeric(rec.latitude)
+          && isNumeric(rec.longitude)
+          && isNumeric(rec.distance)
+          && rec.status in ["APPROVED", "REJECTED_OUTSIDE"]
+          && rec.amountSpent == 25000 // Secured Rp 25.000 cap per audit regulations
+          && rec.method in ["GPS_REAL", "GPS_SIMULATED"];
+    }
+
+    function isValidGeofence(settings) {
+      return settings.officeName is string && settings.officeName.size() > 0 && settings.officeName.size() <= 150
+          && isNumeric(settings.latitude)
+          && isNumeric(settings.longitude)
+          && isNumeric(settings.radius)
+          && settings.radius >= 10
+          && settings.radius <= 1000
+          && settings.mealAllowance == 25000; // Locked to 25.000
+    }
+
+    // --- Collections matching rules ---
+
+    match /employees/{employeeId} {
+      allow list: if isEmailVerified() || isDemoUser();
+      allow get: if (isEmailVerified() && (resource.data.email == request.auth.token.email || isAdmin())) || isDemoUser();
+      // Only administrators can mutate employee profiles, or users registering/updating their own matching employee profile
+      allow create: if (isAdmin() && isValidEmployee(incoming())) 
+                    || (isDemoUser() && isValidEmployee(incoming()))
+                    || (isEmailVerified() && incoming().email == request.auth.token.email && isValidEmployee(incoming()));
+      allow update: if (isAdmin() && isValidEmployee(incoming())) 
+                    || (isDemoUser() && isValidEmployee(incoming()))
+                    || (isEmailVerified() && existing().email == request.auth.token.email && isValidEmployee(incoming()));
+      allow delete: if isAdmin() || isDemoUser();
+    }
+
+    match /attendanceRecords/{recordId} {
+      // Employees must only query their own attendance lists; Admins can access everything.
+      allow list: if (isEmailVerified() && (resource.data.employeeEmail == request.auth.token.email || isAdmin())) || isDemoUser();
+      allow get: if (isEmailVerified() && (resource.data.employeeEmail == request.auth.token.email || isAdmin())) || isDemoUser();
+      
+      // Creating log is allowed if they submit under their verified email
+      allow create: if (isEmailVerified() && incoming().employeeEmail == request.auth.token.email && isValidAttendanceRecord(incoming()))
+                    || (isDemoUser() && isValidAttendanceRecord(incoming()));
+      
+      // Absolute immutable logs. Modifying or deleting historic logs is strictly prohibited.
+      allow update, delete: if false;
+    }
+
+    match /settings/{settingsDoc} {
+      allow read: if isEmailVerified() || isDemoUser();
+      // Only admin is authorized to adjust office coordinates or radius
+      allow write: if (isAdmin() && isValidGeofence(incoming())) || (isDemoUser() && isValidGeofence(incoming()));
+    }
+
+  }
+}

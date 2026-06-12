@@ -1,0 +1,6 @@
+{
+  "name": "Absensi Uang Makan Harian",
+  "description": "Aplikasi pencatatan absensi karyawan berbasis area geofence kantor untuk perhitungan uang makan harian otomatis dan pencegahan kecurangan.",
+  "requestFramePermissions": ["geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
